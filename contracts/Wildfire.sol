@@ -35,9 +35,16 @@ contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
     uint256 public sellOrderCounts;
     uint256 public buyOrderCounts;
 
-    event OrderCreated();
-    event OrderCanceled();
-    event OrderFulfilled();
+    event OrderCreated(uint256 orderId, address creator, uint8 orderType);
+    event OrderCanceled(uint256 orderId, address operator, uint8 orderType);
+    event OrderFulfilled(
+        uint256 sellOrderId,
+        uint256 buyOrderId,
+        address seller,
+        address buyer,
+        uint256 price,
+        uint256 amount
+    );
 
     constructor(address _tradeToken, address _payToken) {
         tradeToken = IERC1155(_tradeToken); // ERC1155 token address
@@ -68,7 +75,7 @@ contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
         require(_amount != 0, "_price should be greater than zero");
         require(
             IERC1155(_sellToken).balanceOf(msg.sender, _epochId) >= _amount,
-            "Insufficient amount"
+            "Insufficient balance"
         );
 
         sellOrderCounts++;
@@ -91,6 +98,8 @@ contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
         //     _amount,
         //     ""
         // );
+
+        emit OrderCreated(sellOrderCounts, msg.sender, SELL_ORDER);
     }
 
     /**
@@ -114,9 +123,8 @@ contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
         require(_price > 0, "_price should be greater than zero");
         require(_amount != 0, "_price should be greater than zero");
         require(
-            IERC20(payToken).allowance(msg.sender, address(this)) >=
-                _price * _amount,
-            "Insufficient allowance"
+            IERC20(payToken).balanceOf(msg.sender) >= _price * _amount,
+            "Insufficient balance"
         );
 
         buyOrderCounts++;
@@ -132,6 +140,7 @@ contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
         });
         addOrderToList(newOrder);
         // IERC20(_buyToken).transferFrom(msg.sender, address(this), _amount);
+        emit OrderCreated(buyOrderCounts, msg.sender, BUY_ORDER);
     }
 
     /**
@@ -181,6 +190,8 @@ contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
             "Only creator can cancell the order"
         );
         order.status = true;
+
+        emit OrderCanceled(_orderId, msg.sender, _orderType);
     }
 
     /**
@@ -191,15 +202,15 @@ contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
      * @param _epochId epoch id
      *
      */
-    function fullfilOrder(
+    function fullfillOrder(
         uint256 _orderId,
         uint8 _orderType,
         uint256 _epochId
-    ) public {
+    ) public nonReentrant {
         if (_orderType == SELL_ORDER) {
             OrderInfo storage sellOrder = sellOrders[_orderId];
 
-            for (uint256 i = 1; i <= sellOrderCounts; i++) {
+            for (uint256 i = 1; i <= buyOrderCounts; i++) {
                 OrderInfo storage buyOrder = buyOrders[i];
 
                 if (sellOrder.price <= buyOrder.price && !buyOrder.status) {
@@ -228,9 +239,22 @@ contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
                     );
 
                     sellOrder.amount -= tradeQuantity;
-                    sellOrder.status = true;
+                    if (sellOrder.amount == 0) {
+                        sellOrder.status = true;
+                    }
                     buyOrder.amount -= tradeValue;
-                    buyOrder.status = true;
+                    if (buyOrder.amount == 0) {
+                        buyOrder.status = true;
+                    }
+
+                    emit OrderFulfilled(
+                        sellOrder.orderId,
+                        buyOrder.orderId,
+                        sellOrder.creator,
+                        buyOrder.creator,
+                        sellOrder.price,
+                        tradeQuantity
+                    );
                 }
             }
         } else {
@@ -265,9 +289,22 @@ contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
                     );
 
                     sellOrder.amount -= tradeQuantity;
-                    sellOrder.status = true;
+                    if (sellOrder.amount == 0) {
+                        sellOrder.status = true;
+                    }
                     buyOrder.amount -= tradeValue;
-                    buyOrder.status = true;
+                    if (buyOrder.amount == 0) {
+                        buyOrder.status = true;
+                    }
+
+                    emit OrderFulfilled(
+                        sellOrder.orderId,
+                        buyOrder.orderId,
+                        sellOrder.creator,
+                        buyOrder.creator,
+                        sellOrder.price,
+                        tradeQuantity
+                    );
                 }
             }
         }
