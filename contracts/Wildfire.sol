@@ -13,7 +13,7 @@ import "hardhat/console.sol";
 
 contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
     IERC1155 tradeToken; // ERC1155 address
-    IERC20 payToken; // USDC address
+    IERC20 payToken; // BNB address
 
     uint8 private SELL_ORDER = 0; // Sell order type
     uint8 private BUY_ORDER = 1; // Buy order type
@@ -74,7 +74,7 @@ contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
         require(_price > 0, "_price should be greater than zero");
         require(_amount != 0, "_price should be greater than zero");
         require(
-            IERC1155(_sellToken).balanceOf(msg.sender, _epochId) >= _amount,
+            tradeToken.balanceOf(msg.sender, _epochId) >= _amount,
             "Insufficient balance"
         );
 
@@ -123,7 +123,7 @@ contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
         require(_price > 0, "_price should be greater than zero");
         require(_amount != 0, "_price should be greater than zero");
         require(
-            IERC20(payToken).balanceOf(msg.sender) >= _price * _amount,
+            payToken.balanceOf(msg.sender) >= _price * _amount,
             "Insufficient balance"
         );
 

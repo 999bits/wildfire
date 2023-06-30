@@ -17,13 +17,19 @@ task("accounts", "Prints the list of accounts", async () => {
 
 
 module.exports = {
-  defaultNetwork: "localhost",
+  defaultNetwork: "hardhat",
   networks: {
-    localhost: {
-      url: "http://127.0.0.1:8545"
-    },
-    hardhat: {
-    },
+    // localhost: {
+    //   url: "http://127.0.0.1:8545"
+    // },
+    // hardhat: {
+    //   forking: {
+    //     // enabled: true,
+    //     // url: "https://arb1.arbitrum.io/rpc",
+    //     url: "https://data-seed-prebsc-1-s1.binance.org:8545",
+    //     // blockNumber: 104886305,
+    //   }
+    // },
     // testnet: {
     //   url: "https://data-seed-prebsc-1-s1.binance.org:8545",
     //   chainId: 97,
@@ -43,12 +49,46 @@ module.exports = {
     apiKey: process.env.apiKey 
   },
   solidity: {
-    version: "0.8.18",
+    compilers: [
+      {
+        version: "0.8.19",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+            details: { yul: false }
+          }
+        },
+      },
+      {
+        version: "0.8.18",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+            details: { yul: false }
+          }
+        },
+      },
+      {
+        version: "0.8.17",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 500,
+            details: { yul: false }
+          }
+        },
+      },
+    ],
     settings: {
       optimizer: {
-        enabled: true
+        enabled: true,
+        runs: 200,
+        details: { yul: false }
       }
-    }
+    },
+
   },
   // paths: {
   //   sources: "./contracts",
