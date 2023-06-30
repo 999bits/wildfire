@@ -104,10 +104,10 @@ describe("Wildfire", function () {
     const initialSellerBalance = await tradeToken.balanceOf(maker.address, epochId);
     const initialBuyerBalance = await payToken.balanceOf(taker.address);
 
-    await tradeToken.connect(maker).setApprovalForAll(operator.address, true);
+    await tradeToken.connect(owner).setApprovalForAll(operator.address, true);
 
-    // const flag = await tradeToken.isApprovedForAll()
-    console.log("1")
+    const flag = await tradeToken.isApprovedForAll(operator.address, owner.address);
+    console.log("1 -> ",flag)
     await payToken.approve(operator.address, ethers.utils.parseEther("10"));
     console.log("2")
 
