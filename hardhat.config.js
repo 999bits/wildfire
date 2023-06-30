@@ -11,41 +11,18 @@ task("accounts", "Prints the list of accounts", async () => {
   }
 });
 
-// module.exports = {
-//   solidity: "0.8.18",
-// };
-
-
 module.exports = {
   defaultNetwork: "hardhat",
   networks: {
-    // localhost: {
-    //   url: "http://127.0.0.1:8545"
-    // },
-    // hardhat: {
-    //   forking: {
-    //     // enabled: true,
-    //     // url: "https://arb1.arbitrum.io/rpc",
-    //     url: "https://data-seed-prebsc-1-s1.binance.org:8545",
-    //     // blockNumber: 104886305,
-    //   }
-    // },
-    // testnet: {
-    //   url: "https://data-seed-prebsc-1-s1.binance.org:8545",
-    //   chainId: 97,
-    //   gasPrice: "auto",
-    //   accounts: {mnemonic: process.env.SECRET_KEY}
-    // },
-    // mainnet: {
-    //   url: "https://bsc-dataseed.binance.org/",
-    //   chainId: 56,
-    //   gasPrice: 20000000000,
-    //   accounts: {mnemonic: process.env.SECRET_KEY}
-    // }
+
+    hardhat: {
+      forking: {
+        url: "https://data-seed-prebsc-1-s1.binance.org:8545",
+      }
+    },
+
   },
   etherscan: {
-    // Your API key for Etherscan
-    // Obtain one at https://bscscan.com/
     apiKey: process.env.apiKey 
   },
   solidity: {
@@ -90,13 +67,5 @@ module.exports = {
     },
 
   },
-  // paths: {
-  //   sources: "./contracts",
-  //   tests: "./test",
-  //   cache: "./cache",
-  //   artifacts: "./artifacts"
-  // },
-  // mocha: {
-  //   timeout: 20000
-  // }
+
 };

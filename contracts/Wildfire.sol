@@ -182,8 +182,8 @@ contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
             "_orderId should be less than order counts"
         );
         OrderInfo storage order = _orderType == SELL_ORDER
-            ? sellOrders[getSellOrderIndex(_orderId)]
-            : buyOrders[getBuyOrderIndex(_orderId)];
+            ? sellOrders[_orderId - 1]
+            : buyOrders[_orderId - 1];
 
         require(
             order.creator == msg.sender,
@@ -208,10 +208,10 @@ contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
         uint256 _epochId
     ) public nonReentrant {
         if (_orderType == SELL_ORDER) {
-            OrderInfo storage sellOrder = sellOrders[_orderId];
+            OrderInfo storage sellOrder = sellOrders[_orderId - 1];
 
             for (uint256 i = 1; i <= buyOrderCounts; i++) {
-                OrderInfo storage buyOrder = buyOrders[i];
+                OrderInfo storage buyOrder = buyOrders[i - 1];
 
                 if (sellOrder.price <= buyOrder.price && !buyOrder.status) {
                     uint256 tradeQuantity = sellOrder.amount < buyOrder.amount
@@ -220,10 +220,6 @@ contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
 
                     uint256 tradeValue = tradeQuantity * sellOrder.price;
 
-                    IERC1155(sellOrder.token).setApprovalForAll(
-                        address(this),
-                        true
-                    );
                     IERC1155(sellOrder.token).safeTransferFrom(
                         sellOrder.creator,
                         buyOrder.creator,
@@ -231,7 +227,6 @@ contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
                         tradeQuantity,
                         ""
                     );
-                    IERC20(buyOrder.token).approve(address(this), tradeValue);
                     IERC20(buyOrder.token).transferFrom(
                         buyOrder.creator,
                         sellOrder.creator,
@@ -258,10 +253,10 @@ contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
                 }
             }
         } else {
-            OrderInfo storage buyOrder = buyOrders[_orderId];
+            OrderInfo storage buyOrder = buyOrders[_orderId - 1];
 
             for (uint256 i = 1; i <= sellOrderCounts; i++) {
-                OrderInfo storage sellOrder = sellOrders[i];
+                OrderInfo storage sellOrder = sellOrders[i - 1];
 
                 if (sellOrder.price <= buyOrder.price && !sellOrder.status) {
                     uint256 tradeQuantity = buyOrder.amount < buyOrder.amount
@@ -270,10 +265,6 @@ contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
 
                     uint256 tradeValue = tradeQuantity * sellOrder.price;
 
-                    IERC1155(sellOrder.token).setApprovalForAll(
-                        address(this),
-                        true
-                    );
                     IERC1155(sellOrder.token).safeTransferFrom(
                         sellOrder.creator,
                         buyOrder.creator,
@@ -281,7 +272,6 @@ contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
                         tradeQuantity,
                         ""
                     );
-                    IERC20(buyOrder.token).approve(address(this), tradeValue);
                     IERC20(buyOrder.token).transferFrom(
                         buyOrder.creator,
                         sellOrder.creator,
@@ -308,15 +298,5 @@ contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
                 }
             }
         }
-    }
-
-    function getSellOrderIndex(uint256 _orderId) public view returns (uint256) {
-        require(_orderId < sellOrders.length, "Order ID out of range");
-        return _orderId;
-    }
-
-    function getBuyOrderIndex(uint256 _orderId) public view returns (uint256) {
-        require(_orderId < buyOrders.length, "Order ID out of range");
-        return _orderId;
     }
 }
