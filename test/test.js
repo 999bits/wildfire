@@ -1,6 +1,7 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { wbnbABI } = require("./abiCode.js");
+const { BigNumber } = require("ethers");
 
 
 describe("Wildfire", function () {
@@ -144,8 +145,6 @@ describe("Wildfire", function () {
 
     const initialSellerBalance = await tradeToken.balanceOf(maker.address, epochId);
     const initialBuyerBalance = await payToken.balanceOf(taker.address);
-    console.log("initialSellerBalance", initialSellerBalance)
-    console.log("initialBuyerBalance", initialBuyerBalance)
 
     await tradeToken.connect(maker).setApprovalForAll(wildfire.address, true);
 
@@ -155,9 +154,8 @@ describe("Wildfire", function () {
 
     const updatedSellerBalance = await tradeToken.balanceOf(maker.address, epochId);
     const updatedBuyerBalance = await payToken.balanceOf(taker.address);
-
-    console.log("updatedSellerBalance", updatedSellerBalance)
-    console.log("updatedBuyerBalance", updatedBuyerBalance)
+    expect(initialSellerBalance - updatedSellerBalance).to.be.equal(5);
+    expect((initialBuyerBalance - updatedBuyerBalance).toString()).to.be.equal(ethers.utils.parseEther("5").toString());
 
   });
 
@@ -187,9 +185,8 @@ describe("Wildfire", function () {
 
     const updatedSellerBalance = await tradeToken.balanceOf(maker.address, epochId);
     const updatedBuyerBalance = await payToken.balanceOf(taker.address);
-
-    console.log("updatedSellerBalance", updatedSellerBalance)
-    console.log("updatedBuyerBalance", updatedBuyerBalance)
+    expect(initialSellerBalance - updatedSellerBalance).to.be.equal(5);
+    expect((initialBuyerBalance - updatedBuyerBalance).toString()).to.be.equal(ethers.utils.parseEther("5").toString());
 
   });
 
