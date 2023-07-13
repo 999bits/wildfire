@@ -74,21 +74,25 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
      * should init price grid before call this at first
      * @param _price desired price
      * @param _sellAmount sell token amount
-     * @param _priceIndex index of price list
      * @param _epochId _epochId of ERC1155 token
      *
      */
     function createSellOrder(
         uint256 _price,
         uint256 _sellAmount,
-        // uint256 _priceIndex,
         uint256 _epochId
     ) external returns (bool) {
         require(_price > 0, "Price should be greater than zero");
         require(_sellAmount > 0, "SellAmount should be greater than zero");
 
-        (bool isExistingPrice, ) = getIndexOfPrice(_price, SellOrBuy.Sell);
-        if (!isExistingPrice) initPriceGrid(_price);
+        (bool isExistingPrice, uint256 _priceIndex) = getIndexOfPrice(
+            _price,
+            SellOrBuy.Sell
+        );
+        if (!isExistingPrice) {
+            initPriceGrid(_price);
+            (, _priceIndex) = getIndexOfPrice(_price, SellOrBuy.Sell);
+        }
 
         require(
             sellPrices[_priceIndex].price == _price &&
@@ -205,19 +209,23 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
      *
      * @param _price desired price
      * @param _buyAmount buy token amount
-     * @param _priceIndex index of price list
      *
      */
     function createBuyOrder(
         uint256 _price,
-        uint256 _buyAmount,
-        uint256 _priceIndex
+        uint256 _buyAmount
     ) external returns (bool) {
         require(_price > 0, "Price should be greater than zero");
         require(_buyAmount > 0, "SellAmount should be greater than zero");
 
-        (bool isExistingPrice, ) = getIndexOfPrice(_price, SellOrBuy.Buy);
-        if (!isExistingPrice) initPriceGrid(_price);
+        (bool isExistingPrice, uint256 _priceIndex) = getIndexOfPrice(
+            _price,
+            SellOrBuy.Buy
+        );
+        if (!isExistingPrice) {
+            initPriceGrid(_price);
+            (, _priceIndex) = getIndexOfPrice(_price, SellOrBuy.Buy);
+        }
 
         require(
             sellPrices[_priceIndex].price == _price &&
@@ -551,6 +559,14 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
             }
         }
         return (false, 0);
+    }
+
+    function getPriceAmount()
+        external
+        view
+        returns (PriceGrid[] memory, PriceGrid[] memory)
+    {
+        return (sellPrices, buyPrices);
     }
 
     // OrderGridList Helper functions
