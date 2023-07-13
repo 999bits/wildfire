@@ -49,7 +49,9 @@ describe("WildfireV2", function () {
 
         const priceAmountObj = String(await wildfire.getPriceAmount());
         console.log(priceAmountObj)
-        expect(priceAmountObj).to.be.equal(`${sellPrice},${sellAmount},${sellPrice},0`)
+        expect(priceAmountObj).to.be.equal(`${sellPrice},${sellAmount},${sellPrice},0`);
+        expect(await wildfire.getDeposits(maker.address, tradeToken.address)).to.equal(sellAmount);
+        expect(await wildfire.getDeposits(maker.address, payToken.address)).to.equal(0);
     })
 
 })

@@ -482,6 +482,17 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
         return true;
     }
 
+    function getDeposits(
+        address _account,
+        address _token
+    ) external view returns (uint256) {
+        require(
+            _token == tradeToken || _token == payToken,
+            "Token address is not valid"
+        );
+        return depositAmountByUser[_account][_token];
+    }
+
     // PriceGrid Helper functions
     /****************************************************************************************/
     /**
