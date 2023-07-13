@@ -43,12 +43,13 @@ describe("WildfireV2", function () {
 
     it ("Fully match a sell order", async function () {
         
-        await wildfire.connect(maker).createSellOrder(sellPrice, sellAmount, epochId);
+        await expect(wildfire.connect(maker).createSellOrder(sellPrice, sellAmount, epochId)).to.emit(wildfire, "OrderCreated");
         const priceIndex = String(await wildfire.getIndexOfPrice(sellPrice, 0));
         console.log("priceIndex", priceIndex)
-        await wildfire.connect(maker).createSellOrder(2, sellAmount, epochId);
-        const priceIndex2 = String(await wildfire.getIndexOfPrice(2, 0));
-        console.log("priceIndex2", priceIndex2)
+
+        const priceAmountObj = String(await wildfire.getPriceAmount());
+        console.log(priceAmountObj)
+        expect(priceAmountObj).to.be.equal(`${sellPrice},${sellAmount},${sellPrice},0`)
     })
 
 })
