@@ -59,7 +59,7 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
     // orderBook[tokenAddress][price] => orders[maker, orderAmount]
     mapping(address => mapping(uint256 => OrderGridList)) public orderBook; // address(1st parameter) : token address, uint256(2nd parameter) : price
 
-    event OrderCreated();
+    event OrderCreated(bytes32 orderId);
     event OrderFilled();
     event OrderPartiallyFilled();
     event OrderCancelled();
@@ -71,7 +71,7 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
 
     /**
      * Create an order to sell the token.
-     * should init price grid before call this at first
+     *
      * @param _price desired price
      * @param _sellAmount sell token amount
      * @param _epochId _epochId of ERC1155 token
@@ -94,11 +94,6 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
             (, _priceIndex) = getIndexOfPrice(_price, SellOrBuy.Sell);
         }
 
-        require(
-            sellPrices[_priceIndex].price == _price &&
-                buyPrices[_priceIndex].price == _price,
-            "Price does not match the index"
-        );
         bytes32 orderId;
 
         deposit(tradeToken, _price, _sellAmount, _epochId);
@@ -116,11 +111,6 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
                 _sellAmount
             );
         }
-        addOrderGridList(
-            orderBook[tradeToken][_price],
-            msg.sender,
-            _sellAmount
-        );
         addOrderPriceGridList(
             sellOrders,
             msg.sender,
@@ -130,20 +120,38 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
         );
         addPriceAmount(sellPrices, _priceIndex, _sellAmount);
 
-        emit OrderCreated();
+        emit OrderCreated(orderId);
 
         return true;
     }
 
+    /**
+     * Fulfill sell order with matching buy order.
+     *
+     * @param _maker order maker address
+     * @param _price order price
+     * @param _sellAmount sell token amount
+     * @param _epochId _epochId of ERC1155 token
+     *
+     */
     function fulfillSellOrder(
         address _maker,
         uint256 _price,
         uint256 _sellAmount,
-        uint256 _priceIndex,
         uint256 _epochId
     ) public returns (bool) {
+        require(_maker != address(0), "Maker should not be zero address");
         require(_price > 0, "Price should be greater than zero");
         require(_sellAmount > 0, "SellAmount should be greater than zero");
+
+        (bool isExistingPrice, uint256 _priceIndex) = getIndexOfPrice(
+            _price,
+            SellOrBuy.Sell
+        );
+        if (!isExistingPrice) {
+            initPriceGrid(_price);
+            (, _priceIndex) = getIndexOfPrice(_price, SellOrBuy.Sell);
+        }
 
         uint256 buyOrderListLength = orderBook[payToken][_price].length;
         for (uint8 i = 0; i < buyOrderListLength; i++) {
@@ -160,8 +168,8 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
                 subPriceAmount(buyPrices, _priceIndex, o.orderAmount);
 
                 depositAmountByUser[o.maker][payToken] -=
-                    o.orderAmount *
-                    _price;
+                    (o.orderAmount * _price) /
+                    (10 ** 18);
                 depositAmountByUser[_maker][tradeToken] -= o.orderAmount;
 
                 IWBNB(payToken).transfer(_maker, o.orderAmount * _price);
@@ -174,7 +182,8 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
                 );
                 _sellAmount -= o.orderAmount;
 
-                emit OrderPartiallyFilled();
+                if (_sellAmount == 0) emit OrderFilled();
+                else emit OrderPartiallyFilled();
             } else if (buyAmount > _sellAmount) {
                 Order memory o = orderBook[payToken][_price].grids[head_].order;
                 orderBook[payToken][_price]
@@ -185,7 +194,9 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
                 subOrderAmount(buyOrders, o.maker, head_, _sellAmount);
                 subPriceAmount(buyPrices, _priceIndex, _sellAmount);
 
-                depositAmountByUser[o.maker][payToken] -= _sellAmount * _price;
+                depositAmountByUser[o.maker][payToken] -=
+                    (_sellAmount * _price) /
+                    (10 ** 18);
                 depositAmountByUser[_maker][tradeToken] -= _sellAmount;
 
                 IWBNB(payToken).transfer(_maker, (_price * _sellAmount));
@@ -216,7 +227,7 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
         uint256 _buyAmount
     ) external returns (bool) {
         require(_price > 0, "Price should be greater than zero");
-        require(_buyAmount > 0, "SellAmount should be greater than zero");
+        require(_buyAmount > 0, "BuyAmount should be greater than zero");
 
         (bool isExistingPrice, uint256 _priceIndex) = getIndexOfPrice(
             _price,
@@ -227,11 +238,6 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
             (, _priceIndex) = getIndexOfPrice(_price, SellOrBuy.Buy);
         }
 
-        require(
-            sellPrices[_priceIndex].price == _price &&
-                buyPrices[_priceIndex].price == _price,
-            "Price does not match the index"
-        );
         bytes32 orderId;
 
         deposit(payToken, _price, _buyAmount, 0);
@@ -249,7 +255,6 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
                 _buyAmount
             );
         }
-        addOrderGridList(orderBook[payToken][_price], msg.sender, _buyAmount);
         addOrderPriceGridList(
             buyOrders,
             msg.sender,
@@ -259,20 +264,38 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
         );
         addPriceAmount(buyPrices, _priceIndex, _buyAmount);
 
-        emit OrderCreated();
+        emit OrderCreated(orderId);
 
         return true;
     }
 
+    /**
+     * Fulfill buy order with matching sell order.
+     *
+     * @param _maker order maker address
+     * @param _price order price
+     * @param _buyAmount buy token amount
+     * @param _epochId _epochId of ERC1155 token
+     *
+     */
     function fulfillBuyOrder(
         address _maker,
         uint256 _price,
         uint256 _buyAmount,
-        uint256 _priceIndex,
         uint256 _epochId
     ) public returns (bool) {
+        require(_maker != address(0), "Maker should not be zero address");
         require(_price > 0, "Price should be greater than zero");
-        require(_buyAmount > 0, "SellAmount should be greater than zero");
+        require(_buyAmount > 0, "BuyAmount should be greater than zero");
+
+        (bool isExistingPrice, uint256 _priceIndex) = getIndexOfPrice(
+            _price,
+            SellOrBuy.Buy
+        );
+        if (!isExistingPrice) {
+            initPriceGrid(_price);
+            (, _priceIndex) = getIndexOfPrice(_price, SellOrBuy.Buy);
+        }
 
         uint256 sellOrderListLength = orderBook[tradeToken][_price].length;
         for (uint8 i = 0; i < sellOrderListLength; i++) {
@@ -291,7 +314,9 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
                 subPriceAmount(sellPrices, _priceIndex, o.orderAmount);
 
                 depositAmountByUser[o.maker][tradeToken] -= o.orderAmount;
-                depositAmountByUser[_maker][payToken] -= o.orderAmount * _price;
+                depositAmountByUser[_maker][payToken] -=
+                    (o.orderAmount * _price) /
+                    (10 ** 18);
 
                 IWBNB(payToken).transfer(o.maker, o.orderAmount * _price);
                 IERC1155(tradeToken).safeTransferFrom(
@@ -303,7 +328,8 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
                 );
                 _buyAmount -= o.orderAmount;
 
-                emit OrderPartiallyFilled();
+                if (_buyAmount == 0) emit OrderFilled();
+                else emit OrderPartiallyFilled();
             } else if (sellAmount > _buyAmount) {
                 Order memory o = orderBook[tradeToken][_price]
                     .grids[head_]
@@ -317,7 +343,9 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
                 subPriceAmount(sellPrices, _priceIndex, _buyAmount);
 
                 depositAmountByUser[o.maker][tradeToken] -= _buyAmount;
-                depositAmountByUser[_maker][payToken] -= _buyAmount * _price;
+                depositAmountByUser[_maker][payToken] -=
+                    (_buyAmount * _price) /
+                    (10 ** 18);
 
                 IWBNB(payToken).transfer(o.maker, (_price * _buyAmount));
                 IERC1155(tradeToken).safeTransferFrom(
@@ -341,16 +369,16 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
      *
      * @param _price  price to cancel order
      * @param _orderId order id to cancel order
-     * @param _priceIndex index of price list
      * @param _epochId _epochId of ERC1155 token
      *
      */
     function cancelSellOrder(
         uint256 _price,
         bytes32 _orderId,
-        uint256 _priceIndex,
         uint256 _epochId
     ) external returns (bool) {
+        (, uint256 _priceIndex) = getIndexOfPrice(_price, SellOrBuy.Sell);
+
         require(
             sellPrices[_priceIndex].price == _price &&
                 buyPrices[_priceIndex].price == _price,
@@ -360,7 +388,7 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
         Order memory order = orderBook[tradeToken][_price]
             .grids[_orderId]
             .order;
-        require(order.maker == msg.sender, "Only maker can cancell the order");
+        require(order.maker == msg.sender, "Only maker can cancel the order");
 
         Refund(tradeToken, order.orderAmount, _epochId);
 
@@ -378,14 +406,15 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
      *
      * @param _price  price to cancel order
      * @param _orderId order id to cancel order
-     * @param _priceIndex index of price list
+     * @param _epochId _epochId of ERC1155 token
      *
      */
     function cancelBuyOrder(
         uint256 _price,
         bytes32 _orderId,
-        uint256 _priceIndex
+        uint256 _epochId
     ) external returns (bool) {
+        (, uint256 _priceIndex) = getIndexOfPrice(_price, SellOrBuy.Buy);
         require(
             sellPrices[_priceIndex].price == _price &&
                 buyPrices[_priceIndex].price == _price,
@@ -393,9 +422,9 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
         );
 
         Order memory order = orderBook[payToken][_price].grids[_orderId].order;
-        require(order.maker == msg.sender, "Only maker can cancell the order");
+        require(order.maker == msg.sender, "Only maker can cancel the order");
 
-        Refund(payToken, order.orderAmount, 0);
+        Refund(payToken, order.orderAmount, _epochId);
 
         deleteOrderGridList(orderBook[payToken][_price], _orderId);
         deleteOrderPriceGridList(buyOrders, msg.sender, _orderId);
@@ -482,6 +511,13 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
         return true;
     }
 
+    /**
+     * Get deposit amounts per user
+     *
+     * @param _account  deposit user
+     * @param _token deposit token
+     *
+     */
     function getDeposits(
         address _account,
         address _token
@@ -572,6 +608,11 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
         return (false, 0);
     }
 
+    /**
+     * Return price struct arrays
+     *
+     *
+     */
     function getPriceAmount()
         external
         view
@@ -645,6 +686,13 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
         return id;
     }
 
+    /**
+     * Delete selected order to OrderGridList
+     *
+     * @param _orderGridList OrderGridList
+     * @param _id order id
+     *
+     */
     function deleteOrderGridList(
         OrderGridList storage _orderGridList,
         bytes32 _id
@@ -682,6 +730,12 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
         revert("Order ID not found.");
     }
 
+    /**
+     * Pop the head order from OrderGridList
+     *
+     * @param _orderGridList OrderGridList
+     *
+     */
     function popHead(
         OrderGridList storage _orderGridList
     ) private returns (bool) {
@@ -722,6 +776,14 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
         }
     }
 
+    /**
+     * Delete selected order to OrderPriceGridList
+     *
+     * @param _list OrderPriceGridList
+     * @param _maker maker of a selected order
+     * @param _orderId orderid of a selected order
+     *
+     */
     function deleteOrderPriceGridList(
         OrderPriceGridList storage _list,
         address _maker,
@@ -749,6 +811,15 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
         }
     }
 
+    /**
+     * Add order amount to OrderPriceGridList
+     *
+     * @param _list OrderPriceGridList
+     * @param _maker maker of a selected order
+     * @param _orderId orderid of a selected order
+     * @param _amount amount to change
+     *
+     */
     function addOrderAmount(
         OrderPriceGridList storage _list,
         address _maker,
@@ -765,6 +836,15 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
         }
     }
 
+    /**
+     * Subtract order amount to OrderPriceGridList
+     *
+     * @param _list OrderPriceGridList
+     * @param _maker maker of a selected order
+     * @param _orderId orderid of a selected order
+     * @param _amount amount to change
+     *
+     */
     function subOrderAmount(
         OrderPriceGridList storage _list,
         address _maker,
@@ -779,5 +859,50 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
         } else {
             return false;
         }
+    }
+
+    // Getter Helper functions
+    /****************************************************************************************/
+
+    /**
+     * Get sell orders list
+     *
+     * @param price sellPrice
+     *
+     */
+    function getAllSellOrders(
+        uint256 price
+    ) external view returns (Order[] memory) {
+        Order[] memory orders = new Order[](
+            orderBook[tradeToken][price].length
+        );
+
+        bytes32 currId = orderBook[tradeToken][price].headId;
+
+        for (uint256 i = 0; i < orderBook[tradeToken][price].length; i++) {
+            orders[i] = orderBook[tradeToken][price].grids[currId].order;
+            currId = orderBook[tradeToken][price].grids[currId].nextOrderGridId;
+        }
+        return orders;
+    }
+
+    /**
+     * Get buy orders list
+     *
+     * @param price buyPrice
+     *
+     */
+    function getAllBuyOrders(
+        uint256 price
+    ) external view returns (Order[] memory) {
+        Order[] memory orders = new Order[](orderBook[payToken][price].length);
+
+        bytes32 currId = orderBook[payToken][price].headId;
+
+        for (uint256 i = 0; i < orderBook[payToken][price].length; i++) {
+            orders[i] = orderBook[payToken][price].grids[currId].order;
+            currId = orderBook[payToken][price].grids[currId].nextOrderGridId;
+        }
+        return orders;
     }
 }
