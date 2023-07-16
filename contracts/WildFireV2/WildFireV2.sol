@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {IWBNB} from "../IWBNB.sol";
 import "hardhat/console.sol";
 
+
 contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
     address public tradeToken; // ERC1155 address
     address public payToken; // BNB address
