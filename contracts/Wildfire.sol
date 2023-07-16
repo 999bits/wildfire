@@ -49,7 +49,8 @@ contract Wildfire is ReentrancyGuard, Ownable, ERC1155Holder {
 
     constructor(address _tradeToken, address _payToken) {
         tradeToken = IERC1155(_tradeToken); // ERC1155 token address
-        payToken = IWBNB(_payToken); // USDC address
+        payToken = IWBNB(_payToken); // WBNB address
+
     }
 
     /**

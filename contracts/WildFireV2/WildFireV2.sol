@@ -67,6 +67,7 @@ contract WildfireV2 is ReentrancyGuard, ERC1155Holder {
     constructor(address _tradeToken, address _payToken) {
         tradeToken = _tradeToken; // ERC1155 token address
         payToken = _payToken; // BNB address
+
     }
 
     /**
