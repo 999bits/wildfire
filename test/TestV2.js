@@ -3,6 +3,7 @@ const { ethers } = require("hardhat");
 const { wbnbABI } = require("./abiCode.js");
 const { BigNumber } = require("ethers");
 
+//Test wildfire v2 orderbook
 describe("WildfireV2", function () {
     let wbnbAddress = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd";
     let wildfire;
