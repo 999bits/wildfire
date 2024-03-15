@@ -1,2 +1,2 @@
-# Y2K-Wildfire
+# Wildfire
 An secondary market on top of y2k earthquake.
